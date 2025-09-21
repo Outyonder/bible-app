@@ -1,10 +1,11 @@
-// Service Worker
-const CACHE = 'bible-app-v2';
+const CACHE = 'bible-app-v3';
 const ASSETS = [
   '/bible-app/',
   '/bible-app/index.html',
   '/bible-app/manifest.webmanifest',
-  '/bible-app/data/kjv-sample.json'
+  '/bible-app/kjv-sample.json',
+  '/bible-app/icon-192.png',
+  '/bible-app/icon-512.png'
 ];
 
 self.addEventListener('install', (e) => {
@@ -23,4 +24,6 @@ self.addEventListener('fetch', (e) => {
   e.respondWith(
     caches.match(e.request).then(res => res || fetch(e.request))
   );
+});
+
 });
