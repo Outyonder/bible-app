@@ -1,11 +1,139 @@
-<!DOCTYPE html>
-<html>
+<!doctype html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Hello GitHub Pages</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Bible App – Reader</title>
+
+  <link rel="manifest" href="manifest.webmanifest" />
+  <meta name="theme-color" content="#0f172a" />
+
+  <style>
+    :root { --bg:#0b1220; --card:#111827; --text:#e5e7eb; --muted:#9ca3af; --accent:#38bdf8; }
+    *{box-sizing:border-box} body { margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif; background:var(--bg); color:var(--text); }
+    header { padding:1rem 1.25rem; border-bottom:1px solid #1f2937; display:flex; gap:.75rem; align-items:center; flex-wrap:wrap; }
+    select, input[type="search"] { background:#0f172a; color:var(--text); border:1px solid #1f2937; padding:.6rem .7rem; border-radius:.5rem; }
+    main { max-width:900px; margin:1rem auto; padding:0 1rem; }
+    .card { background:var(--card); border:1px solid #1f2937; border-radius:1rem; padding:1rem; box-shadow:0 6px 20px rgba(0,0,0,.2); }
+    .verse { line-height:1.8; padding:.3rem .5rem; border-radius:.4rem; }
+    .verse:hover { background:#0f172a; }
+    .vnum { color:var(--muted); margin-right:.4rem; }
+    .toolbar { display:flex; gap:.5rem; align-items:center; margin-left:auto; }
+    .pill { padding:.4rem .7rem; border:1px solid #1f2937; border-radius:999px; cursor:pointer; background:#0f172a; }
+    .pill:active { transform:scale(.98); }
+    .muted { color:var(--muted); }
+  </style>
 </head>
 <body>
-  <h1>Hello World!</h1>
-  <p>This is my first GitHub Page.</p>
+  <header>
+    <strong>Bible App</strong>
+    <select id="book"></select>
+    <select id="chapter"></select>
+    <div class="toolbar">
+      <input id="q" type="search" placeholder="Search this chapter…" />
+      <button class="pill" id="installBtn" title="Install app">Install</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="card">
+      <div id="passage" class="passage"></div>
+      <p class="muted" id="status" style="margin-top:.75rem;"></p>
+    </div>
+  </main>
+
+  <script>
+    // Register service worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js').catch(console.error);
+    }
+    // Optional install prompt
+    let deferredPrompt = null;
+    window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredPrompt = e; });
+    document.getElementById('installBtn').addEventListener('click', async () => {
+      if (deferredPrompt) { deferredPrompt.prompt(); await deferredPrompt.userChoice; deferredPrompt = null; }
+      else alert('Use your browser menu → Add to Home screen');
+    });
+
+    // Reader logic
+    const BASE = location.pathname.replace(/\/[^/]*$/, '/'); // works for GitHub Pages subpath like /bible-app/
+    const DATA_URL = BASE + 'data/kjv-sample.json';
+    const els = {
+      book: document.getElementById('book'),
+      chapter: document.getElementById('chapter'),
+      passage: document.getElementById('passage'),
+      q: document.getElementById('q'),
+      status: document.getElementById('status')
+    };
+    let KJV = {};
+    let current = { book: 'John', chapter: '3' };
+
+    async function loadData() {
+      els.status.textContent = 'Loading…';
+      try {
+        const res = await fetch(DATA_URL, { cache: 'no-store' });
+        KJV = await res.json();
+        els.status.textContent = '';
+        initSelectors();
+        render();
+      } catch (e) {
+        console.error(e);
+        els.status.textContent = 'Could not load data.';
+      }
+    }
+
+    function initSelectors() {
+      els.book.innerHTML = '';
+      Object.keys(KJV).forEach(b => {
+        const opt = document.createElement('option');
+        opt.value = b; opt.textContent = b;
+        if (b === current.book) opt.selected = true;
+        els.book.appendChild(opt);
+      });
+      fillChapters(current.book);
+
+      els.book.onchange = () => {
+        current.book = els.book.value;
+        current.chapter = Object.keys(KJV[current.book])[0];
+        fillChapters(current.book);
+        render();
+      };
+      els.chapter.onchange = () => { current.chapter = els.chapter.value; render(); };
+      els.q.oninput = () => render();
+    }
+
+    function fillChapters(book) {
+      els.chapter.innerHTML = '';
+      Object.keys(KJV[book]).forEach(ch => {
+        const opt = document.createElement('option');
+        opt.value = ch; opt.textContent = 'Chapter ' + ch;
+        if (ch === current.chapter) opt.selected = true;
+        els.chapter.appendChild(opt);
+      });
+    }
+
+    function render() {
+      const verses = KJV[current.book]?.[current.chapter] || {};
+      const query = els.q.value.trim().toLowerCase();
+      els.passage.innerHTML = '';
+      Object.entries(verses).forEach(([num, text]) => {
+        const hit = !query || text.toLowerCase().includes(query);
+        if (!hit) return;
+        const div = document.createElement('div');
+        div.className = 'verse';
+        div.innerHTML = '<span class="vnum">' + num + '</span>' + highlight(text, query);
+        els.passage.appendChild(div);
+      });
+      els.status.textContent = query ? 'Filtered results shown' : '';
+    }
+
+    function highlight(text, q) {
+      if (!q) return text;
+      const esc = q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+      return text.replace(new RegExp(esc, 'ig'), m => '<mark>' + m + '</mark>');
+    }
+
+    loadData();
+  </script>
 </body>
 </html>
