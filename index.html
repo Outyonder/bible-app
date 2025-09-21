@@ -57,7 +57,8 @@
 
     // Reader logic
     const BASE = location.pathname.replace(/\/[^/]*$/, '/'); // works for GitHub Pages subpath like /bible-app/
-    const DATA_URL = BASE + 'data/kjv-sample.json';
+    const DATA_URL = BASE + 'kjv-sample.json';
+
     const els = {
       book: document.getElementById('book'),
       chapter: document.getElementById('chapter'),
